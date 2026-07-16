@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creador de Horarios</title>
+<style>
+  :root{
+    --accent: #345785;
+    --accent-2: #4a6fa5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #eef1f5;
+    padding: 20px 14px 60px;
+    color: #2c3e50;
+  }
+  .container {
+    max-width: 1150px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  header {
+    background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
+    color: #fff;
+    padding: 20px 26px;
+    text-align: center;
+  }
+  header h1 { font-size: 21px; font-weight: 600; margin-bottom: 4px; }
+  header p { font-size: 12.5px; opacity: 0.9; }
+
+  /* ---- Panels ---- */
+  .panel { padding: 16px 20px; }
+  .panel + .panel { border-top: 1px solid #e5e8ec; }
+  .panel-title {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+    font-size: 13px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .panel-title .chevron { transition: transform .15s; font-size: 11px; }
+  .panel-title.collapsed .chevron { transform: rotate(-90deg); }
+  .panel-body { margin-top: 14px; }
+  .panel-body.hidden { display: none; }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .field label {
+    display: block; font-size: 11px; color: #6b7280; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: .3px; font-weight: 600;
+  }
+  .field input[type="text"], .field input[type="number"], .field input[type="time"], .field select {
+    width: 100%; padding: 7px 9px; border: 1px solid #d1d5db; border-radius: 7px;
+    font-size: 13px; color: #2c3e50; background: #fff;
+  }
+  .field input[type="color"] {
+    width: 100%; height: 32px; border: 1px solid #d1d5db; border-radius: 7px; padding: 2px; cursor: pointer;
+  }
+  .days-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .day-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 20px;
+    padding: 5px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .day-chip input { cursor: pointer; }
+
+  .btn {
+    border: none; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; transition: filter .1s, transform .05s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:hover { filter: brightness(1.05); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: #eef1f5; color: #2c3e50; }
+  .btn-danger { background: #fee2e2; color: #b91c1c; }
+  .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ---- Toolbar ---- */
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .toolbar .sep { width: 1px; align-self: stretch; background: #e5e8ec; margin: 0 4px; }
+  .type-btn {
+    display: flex; align-items: center; gap: 6px;
+    border: 2px solid transparent; border-radius: 8px; padding: 8px 12px;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; color: #2c3e50;
+  }
+  .type-btn .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(0,0,0,.08); }
+  .selection-info {
+    font-size: 12px; color: #6b7280; margin-left: auto; white-space: nowrap;
+  }
+
+  .selection-badge {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 999;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.45;
+    transition: opacity .15s;
+    pointer-events: none;
+  }
+  .selection-badge.active { opacity: 1; }
+
+  .popover {
+    display: none;
+    margin-top: 12px; padding: 12px; background: #f8f9fb; border: 1px solid #e5e8ec; border-radius: 10px;
+    gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .popover.open { display: flex; }
+  .popover .field { flex: 1; min-width: 160px; }
+  .popover .field.color-field { flex: 0 0 90px; min-width: 70px; }
+
+  /* ---- Table ---- */
+  .table-wrap { padding: 6px 10px 16px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 700px; }
+  th, td {
+    border: 1px solid #e5e8ec; text-align: center; vertical-align: middle;
+    font-size: 11.5px; height: 42px; padding: 4px;
+  }
+  th { background: var(--accent); color: #fff; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+  th.time-col { background: #2c3e50; width: 92px; cursor: default; }
+  th.day-col { cursor: pointer; }
+  th.day-col:hover { filter: brightness(1.15); }
+  td.time-col { background: #f8f9fb; font-weight: 600; color: #4b5563; font-size: 10px; cursor: pointer; }
+  td.slot {
+    cursor: pointer; font-weight: 600; position: relative; user-select: none;
+    background: #fff; color: #cbd5e1;
+  }
+  td.slot.empty::after { content: '·'; }
+  td.slot.selected { box-shadow: inset 0 0 0 3px var(--accent); }
+  td.slot.type-libre { border-style: dashed; }
+  td.slot .rec-star { position: absolute; top: 1px; right: 3px; font-size: 8px; color: #fef9c3; }
+
+  /* ---- Legend ---- */
+  .legend-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #4b5563; }
+  .legend-color { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+  .empty-legend { font-size: 12px; color: #9ca3af; font-style: italic; }
+
+  .footer-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; padding: 14px 20px; background: #f8f9fb; border-top: 1px solid #e5e8ec; }
+
+  @media (max-width: 640px) {
+    .selection-info { margin-left: 0; width: 100%; order: 99; }
+  }
+</style>
+</head>
+<body>
+<div class="selection-badge" id="selectionBadge">0 celdas</div>
+<div class="container">
+
+  <div class="card">
+    <header>
+      <h1 id="titleDisplay">Creador de Horarios</h1>
+    </header>
+
+    <!-- CONFIG PANEL -->
+    <div class="panel">
+      <div class="panel-title" id="configToggle">
+        <span>⚙ Configuración y personalización</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="panel-body" id="configBody">
+        <div class="field-grid">
+          <div class="field">
+            <label>Título del horario</label>
+            <input type="text" id="cfgTitle" placeholder="Mi Horario Semanal">
+          </div>
+          <div class="field">
+            <label>Color de acento</label>
+            <input type="color" id="cfgAccent" value="#345785">
+          </div>
+          <div class="field">
+            <label>Hora académica</label>
+            <select id="cfgBlock">
+              <option value="45">45 minutos</option>
+              <option value="50">50 minutos</option>
+              <option value="60" selected>60 minutos</option>
+              <option value="90">90 minutos</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </div>
+          <div class="field" id="cfgBlockCustomWrap" style="display:none;">
+            <label>Minutos personalizados</label>
+            <input type="number" id="cfgBlockCustom" min="5" max="240" value="60">
+          </div>
+          <div class="field">
+            <label>Hora de inicio</label>
+            <input type="time" id="cfgStart" value="08:00">
+          </div>
+          <div class="field">
+            <label>Hora de fin</label>
+            <input type="time" id="cfgEnd" value="20:00">
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Días a mostrar</label>
+          <div class="days-row" id="daysRow"></div>
+        </div>
+        <button class="btn btn-primary" id="applyConfigBtn">Aplicar configuración</button>
+        <span style="font-size:11.5px;color:#9ca3af;margin-left:10px;">Nota: cambiar la configuración reinicia las celdas asignadas.</span>
+      </div>
+    </div>
+
+    <!-- TOOLBAR PANEL -->
+    <div class="panel">
+      <div class="panel-title" style="cursor:default;"><span>🖊 Asignar a la selección</span></div>
+      <div class="panel-body">
+        <div class="toolbar" id="toolbar">
+          <button class="type-btn" data-type="curso" style="background:#eef1f5;"><span class="swatch" style="background:#fef3c7;"></span>Curso…</button>
+          <button class="type-btn" data-type="almuerzo" style="background:#f3f4f6;"><span class="swatch" style="background:#e5e7eb;"></span>Almuerzo</button>
+          <button class="type-btn" data-type="cena" style="background:#ccfbf1;"><span class="swatch" style="background:#99f6e4;"></span>Cena</button>
+          <button class="type-btn" data-type="libre" style="background:#f9fafb;border:2px dashed #d1d5db;"><span class="swatch" style="background:#fff;"></span>Libre</button>
+          <button class="type-btn" data-type="recuperacion" style="background:#fecaca;color:#7f1d1d;"><span class="swatch" style="background:linear-gradient(135deg,#ef4444,#b91c1c);"></span>Recuperación</button>
+          <button class="type-btn" data-type="otro" style="background:#e5e7eb;"><span class="swatch" style="background:#9ca3af;"></span>Otro…</button>
+          <div class="sep"></div>
+          <button class="btn btn-secondary" id="deselectBtn">Deseleccionar</button>
+          <button class="btn btn-danger" id="clearSelBtn">Borrar selección</button>
+          <span class="selection-info" id="selectionInfo">0 celdas seleccionadas</span>
+        </div>
+
+        <div class="popover" id="cursoPopover">
+          <div class="field"><label>Nombre del curso</label><input type="text" id="cursoNombre" placeholder="Ej. Matemática II"></div>
+          <div class="field color-field"><label>Color</label><input type="color" id="cursoColor" value="#fef3c7"></div>
+          <button class="btn btn-primary" id="cursoAplicar">Aplicar</button>
+          <button class="btn btn-secondary" id="cursoCancelar">Cancelar</button>
+        </div>
+
+        <div class="popover" id="otroPopover">
+          <div class="field"><label>Etiqueta</label><input type="text" id="otroNombre" placeholder="Ej. Trámites, Transporte..."></div>
+          <div class="field color-field"><label>Color</label><input type="color" id="otroColor" value="#e5e7eb"></div>
+          <button class="btn btn-primary" id="otroAplicar">Aplicar</button>
+          <button class="btn btn-secondary" id="otroCancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table id="scheduleTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- LEGEND -->
+    <div class="panel">
+      <div class="panel-title" style="cursor:default;"><span>Leyenda</span></div>
+      <div class="panel-body">
+        <div class="legend-grid" id="legendGrid"></div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn btn-ghost" id="clearAllBtn">Vaciar horario completo</button>
+      <button class="btn btn-primary" id="exportBtn">⬇ Exportar como imagen</button>
+    </div>
+  </div>
+
+  <canvas id="exportCanvas" style="display:none;"></canvas>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var ALL_DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  var STORAGE_KEY = 'creadorHorarios_v1';
+
+  var COURSE_PALETTE = [
+    {bg:'#fef3c7',fg:'#92400e'}, {bg:'#dbeafe',fg:'#1e40af'}, {bg:'#dcfce7',fg:'#166534'},
+    {bg:'#fce7f3',fg:'#9d174d'}, {bg:'#ede9fe',fg:'#5b21b6'}, {bg:'#e0e7ff',fg:'#3730a3'},
+    {bg:'#fed7aa',fg:'#9a3412'}, {bg:'#cffafe',fg:'#155e75'}, {bg:'#ecfccb',fg:'#3f6212'},
+    {bg:'#f5d0fe',fg:'#86198f'}, {bg:'#e2e8f0',fg:'#334155'}, {bg:'#fbcfe8',fg:'#831843'}
+  ];
+
+  var FIXED_TYPES = {
+    almuerzo:     {label:'Almuerzo',      bg:'#f3f4f6', fg:'#6b7280', italic:true},
+    cena:         {label:'Cena',          bg:'#ccfbf1', fg:'#115e59', italic:true},
+    libre:        {label:'Libre',         bg:'#ffffff', fg:'#9ca3af', dashed:true},
+    recuperacion: {label:'Recuperación',  bg:'#ef4444', bg2:'#b91c1c', fg:'#ffffff', gradient:true, star:true}
+  };
+
+  var config = {
+    title: 'Creador de Horarios',
+    accent: '#345785',
+    blockMinutes: 60,
+    startHour: 8, startMin: 0,
+    endHour: 20, endMin: 0,
+    activeDays: {Lunes:true, Martes:true, 'Miércoles':true, Jueves:true, Viernes:true, 'Sábado':false, Domingo:false}
+  };
+
+  var grid = {}; // key `${day}__${slotStartMinutes}` -> {kind, label, bg, fg, dashed, gradient, star}
+  var courseColors = {}; // courseName -> {bg,fg}
+  var slots = [];
+  var selection = new Set(); // key set
+  var dragging = false;
+  var dragMode = 'add'; // 'add' or 'remove', decided by the cell where the drag started
+  var currentPopover = null;
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+
+  function generateSlots(){
+    var out = [];
+    var start = config.startHour*60 + config.startMin;
+    var end = config.endHour*60 + config.endMin;
+    var cur = start;
+    while (cur + config.blockMinutes <= end){
+      var s = cur, e = cur + config.blockMinutes;
+      out.push({
+        startMin: s,
+        label: pad(Math.floor(s/60))+':'+pad(s%60)+' – '+pad(Math.floor(e/60))+':'+pad(e%60)
+      });
+      cur = e;
+    }
+    return out;
+  }
+
+  function activeDaysList(){
+    return ALL_DAYS.filter(function(d){ return config.activeDays[d]; });
+  }
+
+  function cellKey(day, startMin){ return day + '__' + startMin; }
+
+  function nextCourseColor(){
+    var used = Object.keys(courseColors).length;
+    return COURSE_PALETTE[used % COURSE_PALETTE.length];
+  }
+
+  // ---------- Rendering ----------
+  function renderAll(){
+    document.documentElement.style.setProperty('--accent', config.accent);
+    document.documentElement.style.setProperty('--accent-2', shade(config.accent, 18));
+    document.getElementById('titleDisplay').textContent = config.title || 'Creador de Horarios';
+
+    slots = generateSlots();
+    renderTable();
+    renderLegend();
+    updateSelectionInfo();
+    saveState();
+  }
+
+  function shade(hex, amt){
+    var c = hex.replace('#','');
+    if (c.length === 3) c = c.split('').map(function(x){return x+x;}).join('');
+    var num = parseInt(c,16);
+    var r = Math.min(255, (num>>16) + amt);
+    var g = Math.min(255, ((num>>8)&0xff) + amt);
+    var b = Math.min(255, (num&0xff) + amt);
+    return '#'+[r,g,b].map(function(v){ return Math.max(0,v).toString(16).padStart(2,'0'); }).join('');
+  }
+
+  function renderTable(){
+    var days = activeDaysList();
+    var thead = document.getElementById('tableHead');
+    var tbody = document.getElementById('tableBody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    var trh = document.createElement('tr');
+    var thTime = document.createElement('th');
+    thTime.className = 'time-col';
+    thTime.textContent = 'Hora';
+    trh.appendChild(thTime);
+    days.forEach(function(day){
+      var th = document.createElement('th');
+      th.className = 'day-col';
+      th.textContent = day;
+      th.title = 'Clic para seleccionar todo el día';
+      th.addEventListener('click', function(){ selectColumn(day); });
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+
+    slots.forEach(function(slot){
+      var tr = document.createElement('tr');
+      var tdTime = document.createElement('td');
+      tdTime.className = 'time-col';
+      tdTime.textContent = slot.label;
+      tdTime.title = 'Clic para seleccionar toda la franja';
+      tdTime.addEventListener('click', function(){ selectRow(slot.startMin); });
+      tr.appendChild(tdTime);
+
+      days.forEach(function(day){
+        var td = document.createElement('td');
+        var key = cellKey(day, slot.startMin);
+        td.className = 'slot';
+        td.dataset.key = key;
+        applyCellVisual(td, key);
+        attachCellEvents(td, key);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyCellVisual(td, key){
+    var data = grid[key];
+    td.classList.remove('empty','type-libre');
+    td.querySelectorAll('.rec-star').forEach(function(s){ s.remove(); });
+    td.style.background = '';
+    td.style.color = '';
+    td.style.fontStyle = '';
+    td.textContent = '';
+    if (!data){
+      td.classList.add('empty');
+      td.style.background = '#fff';
+      return;
+    }
+    if (data.gradient){
+      td.style.background = 'linear-gradient(135deg, ' + data.bg + ' 0%, ' + data.bg2 + ' 100%)';
+    } else {
+      td.style.background = data.bg;
+    }
+    td.style.color = data.fg;
+    if (data.italic) td.style.fontStyle = 'italic';
+    if (data.dashed) td.classList.add('type-libre');
+    td.textContent = data.label;
+    if (data.star){
+      var star = document.createElement('span');
+      star.className = 'rec-star';
+      star.textContent = '★';
+      td.appendChild(star);
+    }
+    if (selection.has(key)) td.classList.add('selected');
+  }
+
+  function refreshCell(key){
+    var td = document.querySelector('td.slot[data-key="'+cssEscape(key)+'"]');
+    if (td) applyCellVisual(td, key);
+  }
+
+  function cssEscape(s){ return s.replace(/"/g,'\\"'); }
+
+  function refreshSelectionVisuals(){
+    document.querySelectorAll('td.slot').forEach(function(td){
+      td.classList.toggle('selected', selection.has(td.dataset.key));
+    });
+    updateSelectionInfo();
+  }
+
+  function updateSelectionInfo(){
+    var n = selection.size;
+    document.getElementById('selectionInfo').textContent = n + (n === 1 ? ' celda seleccionada' : ' celdas seleccionadas');
+    var badge = document.getElementById('selectionBadge');
+    badge.textContent = n + (n === 1 ? ' celda' : ' celdas');
+    badge.classList.toggle('active', n > 0);
+  }
+
+  function renderLegend(){
+    var used = {};
+    Object.keys(grid).forEach(function(k){
+      var d = grid[k];
+      var id = d.kind === 'curso' ? 'curso:' + d.label : (d.kind === 'otro' ? 'otro:' + d.label : d.kind);
+      used[id] = d;
+    });
+    var legend = document.getElementById('legendGrid');
+    legend.innerHTML = '';
+    var keys = Object.keys(used);
+    if (!keys.length){
+      legend.innerHTML = '<div class="empty-legend">Aún no hay celdas asignadas. Selecciona celdas en la tabla y usa la barra de arriba.</div>';
+      return;
+    }
+    keys.forEach(function(id){
+      var d = used[id];
+      var item = document.createElement('div');
+      item.className = 'legend-item';
+      var swatch = document.createElement('div');
+      swatch.className = 'legend-color';
+      swatch.style.background = d.gradient ? 'linear-gradient(135deg,'+d.bg+','+d.bg2+')' : d.bg;
+      item.appendChild(swatch);
+      var span = document.createElement('span');
+      span.textContent = d.label;
+      item.appendChild(span);
+      legend.appendChild(item);
+    });
+  }
+
+  // ---------- Selection ----------
+  function attachCellEvents(td, key){
+    td.addEventListener('mousedown', function(e){
+      dragging = true;
+      dragMode = selection.has(key) ? 'remove' : 'add';
+      toggleCell(key, dragMode);
+      refreshSelectionVisuals();
+      e.preventDefault();
+    });
+    td.addEventListener('mouseenter', function(){
+      if (dragging){
+        toggleCell(key, dragMode);
+        refreshSelectionVisuals();
+      }
+    });
+  }
+  document.addEventListener('mouseup', function(){ dragging = false; });
+
+  function toggleCell(key, mode){
+    if (mode === 'remove') selection.delete(key); else selection.add(key);
+  }
+
+  function toggleGroup(keys){
+    var allSelected = keys.every(function(k){ return selection.has(k); });
+    keys.forEach(function(k){ allSelected ? selection.delete(k) : selection.add(k); });
+    refreshSelectionVisuals();
+  }
+
+  function selectColumn(day){
+    toggleGroup(slots.map(function(slot){ return cellKey(day, slot.startMin); }));
+  }
+
+  function selectRow(startMin){
+    toggleGroup(activeDaysList().map(function(day){ return cellKey(day, startMin); }));
+  }
+
+  // ---------- Assign types ----------
+  function assignFixed(kind){
+    if (!selection.size) return;
+    var t = FIXED_TYPES[kind];
+    var data = {kind: kind, label: t.label, bg: t.bg, fg: t.fg};
+    if (t.gradient){ data.gradient = true; data.bg2 = t.bg2; data.star = true; }
+    if (t.italic) data.italic = true;
+    if (t.dashed) data.dashed = true;
+    selection.forEach(function(key){ grid[key] = Object.assign({}, data); });
+    afterAssign();
+  }
+
+  function assignCourse(name, color){
+    if (!selection.size) return;
+    name = name.trim();
+    if (!name) return;
+    var palette;
+    if (courseColors[name]){
+      palette = courseColors[name];
+    } else {
+      palette = {bg: color, fg: contrastText(color)};
+      courseColors[name] = palette;
+    }
+    var data = {kind:'curso', label: name, bg: palette.bg, fg: palette.fg};
+    selection.forEach(function(key){ grid[key] = Object.assign({}, data); });
+    afterAssign();
+  }
+
+  function assignOtro(name, color){
+    if (!selection.size) return;
+    name = name.trim();
+    if (!name) return;
+    var data = {kind:'otro', label: name, bg: color, fg: contrastText(color)};
+    selection.forEach(function(key){ grid[key] = Object.assign({}, data); });
+    afterAssign();
+  }
+
+  function contrastText(hex){
+    var c = hex.replace('#','');
+    if (c.length === 3) c = c.split('').map(function(x){return x+x;}).join('');
+    var num = parseInt(c,16);
+    var r = (num>>16)&0xff, g=(num>>8)&0xff, b=num&0xff;
+    var lum = (0.299*r + 0.587*g + 0.114*b)/255;
+    return lum > 0.6 ? '#1f2937' : '#ffffff';
+  }
+
+  function afterAssign(){
+    selection.forEach(function(key){ refreshCell(key); });
+    renderLegend();
+    closeAllPopovers();
+    saveState();
+  }
+
+  function clearSelection(){
+    if (!selection.size) return;
+    selection.forEach(function(key){ delete grid[key]; refreshCell(key); });
+    renderLegend();
+    saveState();
+  }
+
+  function deselectAll(){
+    if (!selection.size) return;
+    selection.clear();
+    refreshSelectionVisuals();
+  }
+
+  function clearAll(){
+    if (!Object.keys(grid).length){ return; }
+    if (!confirm('¿Vaciar todo el horario? Esta acción no se puede deshacer.')) return;
+    grid = {};
+    selection.clear();
+    renderTable();
+    renderLegend();
+    saveState();
+  }
+
+  // ---------- Popovers ----------
+  function closeAllPopovers(){
+    document.getElementById('cursoPopover').classList.remove('open');
+    document.getElementById('otroPopover').classList.remove('open');
+    currentPopover = null;
+  }
+
+  document.getElementById('toolbar').addEventListener('click', function(e){
+    var btn = e.target.closest('.type-btn');
+    if (!btn) return;
+    var type = btn.dataset.type;
+    if (type === 'curso'){
+      if (!selection.size) return;
+      document.getElementById('cursoColor').value = nextCourseColor().bg;
+      document.getElementById('cursoPopover').classList.add('open');
+      document.getElementById('otroPopover').classList.remove('open');
+      document.getElementById('cursoNombre').focus();
+    } else if (type === 'otro'){
+      if (!selection.size) return;
+      document.getElementById('otroPopover').classList.add('open');
+      document.getElementById('cursoPopover').classList.remove('open');
+      document.getElementById('otroNombre').focus();
+    } else {
+      closeAllPopovers();
+      assignFixed(type);
+    }
+  });
+
+  document.getElementById('cursoAplicar').addEventListener('click', function(){
+    assignCourse(document.getElementById('cursoNombre').value, document.getElementById('cursoColor').value);
+    document.getElementById('cursoNombre').value = '';
+  });
+  document.getElementById('cursoCancelar').addEventListener('click', closeAllPopovers);
+  document.getElementById('otroAplicar').addEventListener('click', function(){
+    assignOtro(document.getElementById('otroNombre').value, document.getElementById('otroColor').value);
+    document.getElementById('otroNombre').value = '';
+  });
+  document.getElementById('otroCancelar').addEventListener('click', closeAllPopovers);
+
+  document.getElementById('deselectBtn').addEventListener('click', deselectAll);
+  document.getElementById('clearSelBtn').addEventListener('click', clearSelection);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+
+  // ---------- Config panel ----------
+  var configToggle = document.getElementById('configToggle');
+  var configBody = document.getElementById('configBody');
+  configToggle.addEventListener('click', function(){
+    configToggle.classList.toggle('collapsed');
+    configBody.classList.toggle('hidden');
+  });
+
+  function buildDaysRow(){
+    var row = document.getElementById('daysRow');
+    row.innerHTML = '';
+    ALL_DAYS.forEach(function(day){
+      var label = document.createElement('label');
+      label.className = 'day-chip';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!config.activeDays[day];
+      cb.addEventListener('change', function(){ config.activeDays[day] = cb.checked; });
+      label.appendChild(cb);
+      var span = document.createElement('span');
+      span.textContent = day;
+      label.appendChild(span);
+      row.appendChild(label);
+    });
+  }
+
+  document.getElementById('cfgBlock').addEventListener('change', function(){
+    document.getElementById('cfgBlockCustomWrap').style.display = this.value === 'custom' ? '' : 'none';
+  });
+
+  document.getElementById('applyConfigBtn').addEventListener('click', function(){
+    if (Object.keys(grid).length && !confirm('Cambiar la configuración reiniciará todas las celdas asignadas. ¿Continuar?')) return;
+
+    config.title = document.getElementById('cfgTitle').value || 'Creador de Horarios';
+    config.accent = document.getElementById('cfgAccent').value;
+
+    var blockSel = document.getElementById('cfgBlock').value;
+    config.blockMinutes = blockSel === 'custom'
+      ? Math.max(5, parseInt(document.getElementById('cfgBlockCustom').value, 10) || 60)
+      : parseInt(blockSel, 10);
+
+    var startParts = document.getElementById('cfgStart').value.split(':');
+    var endParts = document.getElementById('cfgEnd').value.split(':');
+    config.startHour = parseInt(startParts[0], 10); config.startMin = parseInt(startParts[1], 10);
+    config.endHour = parseInt(endParts[0], 10); config.endMin = parseInt(endParts[1], 10);
+
+    grid = {};
+    selection.clear();
+    renderAll();
+  });
+
+  function loadConfigIntoForm(){
+    document.getElementById('cfgTitle').value = config.title;
+    document.getElementById('cfgAccent').value = config.accent;
+    var blockOptions = ['45','50','60','90'];
+    var blockSelect = document.getElementById('cfgBlock');
+    if (blockOptions.indexOf(String(config.blockMinutes)) >= 0){
+      blockSelect.value = String(config.blockMinutes);
+      document.getElementById('cfgBlockCustomWrap').style.display = 'none';
+    } else {
+      blockSelect.value = 'custom';
+      document.getElementById('cfgBlockCustom').value = config.blockMinutes;
+      document.getElementById('cfgBlockCustomWrap').style.display = '';
+    }
+    document.getElementById('cfgStart').value = pad(config.startHour)+':'+pad(config.startMin);
+    document.getElementById('cfgEnd').value = pad(config.endHour)+':'+pad(config.endMin);
+    buildDaysRow();
+  }
+
+  // ---------- Persistence ----------
+  function saveState(){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({config: config, grid: grid, courseColors: courseColors}));
+    } catch(e){}
+  }
+
+  function loadState(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      var parsed = JSON.parse(raw);
+      if (parsed.config) Object.assign(config, parsed.config);
+      if (parsed.grid) grid = parsed.grid;
+      if (parsed.courseColors) courseColors = parsed.courseColors;
+      return true;
+    } catch(e){ return false; }
+  }
+
+  // ---------- Export as image ----------
+  function exportImage(){
+    var days = activeDaysList();
+    if (!days.length) return;
+    var scale = 2;
+    var timeColW = 100, dayColW = 128, rowH = 40, headH = 40;
+    var titleH = 56, legendPad = 24, legendRowH = 26, legendCols = Math.max(1, Math.floor((timeColW + dayColW*days.length - 40) / 190));
+
+    var usedLegend = {};
+    Object.keys(grid).forEach(function(k){
+      var d = grid[k];
+      var id = d.kind === 'curso' ? 'curso:'+d.label : (d.kind === 'otro' ? 'otro:'+d.label : d.kind);
+      usedLegend[id] = d;
+    });
+    var legendItems = Object.keys(usedLegend).map(function(k){ return usedLegend[k]; });
+    var legendRows = Math.ceil(legendItems.length / legendCols) || 0;
+    var legendH = legendItems.length ? (legendPad*2 + 20 + legendRows*legendRowH) : 0;
+
+    var tableW = timeColW + dayColW*days.length;
+    var tableH = headH + rowH*slots.length;
+    var totalW = tableW + 40;
+    var totalH = titleH + tableH + legendH + 30;
+
+    var canvas = document.getElementById('exportCanvas');
+    canvas.width = totalW*scale;
+    canvas.height = totalH*scale;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,totalW,totalH);
+
+    var accent = config.accent;
+    var accent2 = shade(accent, 18);
+
+    // Title band
+    var grad = ctx.createLinearGradient(0,0,totalW,titleH);
+    grad.addColorStop(0, accent2); grad.addColorStop(1, accent);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,totalW,titleH);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 20px Segoe UI, Tahoma, sans-serif';
+    ctx.fillText(config.title || 'Creador de Horarios', totalW/2, titleH/2);
+
+    var originX = 20, originY = titleH + 12;
+
+    // Header row
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(originX, originY, timeColW, headH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 11px Segoe UI, Tahoma, sans-serif';
+    ctx.fillText('HORA', originX+timeColW/2, originY+headH/2);
+
+    days.forEach(function(day, i){
+      var x = originX + timeColW + i*dayColW;
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, originY, dayColW, headH);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 11px Segoe UI, Tahoma, sans-serif';
+      ctx.fillText(day.toUpperCase(), x+dayColW/2, originY+headH/2);
+    });
+
+    // Grid border helper
+    function strokeCell(x,y,w,h){
+      ctx.strokeStyle = '#e5e8ec';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+    }
+
+    slots.forEach(function(slot, r){
+      var y = originY + headH + r*rowH;
+      // time col
+      ctx.fillStyle = '#f8f9fb';
+      ctx.fillRect(originX, y, timeColW, rowH);
+      strokeCell(originX, y, timeColW, rowH);
+      ctx.fillStyle = '#4b5563';
+      ctx.font = '600 9.5px Segoe UI, Tahoma, sans-serif';
+      ctx.fillText(slot.label, originX+timeColW/2, y+rowH/2);
+
+      days.forEach(function(day, i){
+        var x = originX + timeColW + i*dayColW;
+        var data = grid[cellKey(day, slot.startMin)];
+        if (data){
+          if (data.gradient){
+            var g = ctx.createLinearGradient(x,y,x+dayColW,y+rowH);
+            g.addColorStop(0, data.bg); g.addColorStop(1, data.bg2);
+            ctx.fillStyle = g;
+          } else {
+            ctx.fillStyle = data.bg;
+          }
+          ctx.fillRect(x,y,dayColW,rowH);
+          strokeCell(x,y,dayColW,rowH);
+          ctx.fillStyle = data.fg;
+          ctx.font = (data.italic ? 'italic ' : '') + '700 11px Segoe UI, Tahoma, sans-serif';
+          wrapText(ctx, data.label, x+dayColW/2, y+rowH/2, dayColW-10, 12);
+          if (data.star){
+            ctx.font = '700 9px Segoe UI, Tahoma, sans-serif';
+            ctx.fillStyle = '#fef9c3';
+            ctx.textAlign = 'right';
+            ctx.fillText('★', x+dayColW-6, y+10);
+            ctx.textAlign = 'center';
+          }
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x,y,dayColW,rowH);
+          strokeCell(x,y,dayColW,rowH);
+        }
+      });
+    });
+
+    // Legend
+    if (legendItems.length){
+      var legendY = originY + headH + rowH*slots.length + legendPad;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#4b5563';
+      ctx.font = '700 11px Segoe UI, Tahoma, sans-serif';
+      ctx.fillText('LEYENDA', originX, legendY);
+      var itemY = legendY + 22;
+      var colW = tableW / legendCols;
+      legendItems.forEach(function(d, idx){
+        var col = idx % legendCols;
+        var row = Math.floor(idx / legendCols);
+        var x = originX + col*colW;
+        var y = itemY + row*legendRowH;
+        if (d.gradient){
+          var g2 = ctx.createLinearGradient(x,y,x+16,y+16);
+          g2.addColorStop(0,d.bg); g2.addColorStop(1,d.bg2);
+          ctx.fillStyle = g2;
+        } else {
+          ctx.fillStyle = d.bg;
+        }
+        ctx.fillRect(x, y, 15, 15);
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.strokeRect(x+0.5,y+0.5,14,14);
+        ctx.fillStyle = '#4b5563';
+        ctx.font = '400 11px Segoe UI, Tahoma, sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(d.label, x+22, y+8);
+      });
+    }
+
+    var url = canvas.toDataURL('image/png');
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'horario.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function wrapText(ctx, text, cx, cy, maxWidth, lineHeight){
+    var words = text.split(' ');
+    var lines = [];
+    var line = '';
+    words.forEach(function(w){
+      var test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxWidth && line){
+        lines.push(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    });
+    if (line) lines.push(line);
+    if (lines.length > 3) lines = lines.slice(0,3);
+    var startY = cy - ((lines.length-1)*lineHeight)/2;
+    lines.forEach(function(l, i){
+      ctx.fillText(l, cx, startY + i*lineHeight);
+    });
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', exportImage);
+
+  // ---------- Init ----------
+  loadState();
+  loadConfigIntoForm();
+  renderAll();
+})();
+</script>
+</body>
+</html>
